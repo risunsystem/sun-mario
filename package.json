@@ -1,0 +1,12 @@
+{
+  "name": "ts-ai-study",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "open index.html",
+    "serve": "npx serve .",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
