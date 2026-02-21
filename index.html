@@ -39,7 +39,9 @@
       margin-bottom: 8px;
       color: #e63946;
       font-size: 10px;
+      align-items: center;
     }
+    .hud-spacer { flex: 1; }
     #canvas {
       display: block;
       background: #5c94fc;
@@ -55,15 +57,16 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(0,0,0,0.9);
+      background: rgba(0,0,0,0.92);
       border-radius: 12px;
       color: #e63946;
       text-align: center;
-      padding: 30px;
+      padding: 24px 30px;
+      overflow-y: auto;
     }
     .overlay.hidden { display: none; }
-    .overlay h2 { font-size: 16px; margin-bottom: 20px; }
-    .overlay p { font-size: 8px; line-height: 2; margin-bottom: 16px; color: rgba(229,57,70,0.9); }
+    .overlay h2 { font-size: 16px; margin-bottom: 16px; }
+    .overlay p { font-size: 8px; line-height: 2; margin-bottom: 14px; color: rgba(229,57,70,0.9); }
     .btn {
       font-family: 'Press Start 2P', monospace;
       font-size: 10px;
@@ -74,12 +77,112 @@
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s;
+      margin-top: 8px;
     }
     .btn:hover {
       background: rgba(229, 57, 70, 0.2);
       box-shadow: 0 0 20px rgba(229, 57, 70, 0.4);
     }
-    .final-score { font-size: 12px; color: #ffd166; margin-bottom: 12px; }
+    .btn-sm {
+      font-size: 7px;
+      padding: 7px 12px;
+    }
+    .final-score { font-size: 12px; color: #ffd166; margin-bottom: 10px; }
+    .welcome-text { font-size: 8px; color: rgba(229,57,70,0.6); margin-bottom: 12px; }
+
+    /* 注册输入框 */
+    .name-input {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      padding: 10px 14px;
+      background: rgba(229,57,70,0.08);
+      color: #e63946;
+      border: 2px solid #e63946;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      text-align: center;
+      width: 220px;
+      outline: none;
+    }
+    .name-input::placeholder { color: rgba(229,57,70,0.35); }
+    .name-input:focus { box-shadow: 0 0 12px rgba(229,57,70,0.3); }
+
+    /* 最近账号 */
+    .recent-label {
+      font-size: 6px;
+      color: rgba(229,57,70,0.4);
+      margin-bottom: 6px;
+    }
+    .recent-users {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 10px;
+      max-width: 300px;
+    }
+    .recent-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 7px;
+      padding: 5px 10px;
+      background: rgba(229,57,70,0.08);
+      color: rgba(229,57,70,0.7);
+      border: 1px solid rgba(229,57,70,0.4);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .recent-btn:hover { background: rgba(229,57,70,0.2); color: #e63946; }
+
+    /* 开始界面操作按钮行 */
+    .start-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    /* 排行榜 */
+    .leaderboard {
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto 12px;
+      border: 1px solid rgba(229,57,70,0.25);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .lb-title {
+      font-size: 8px;
+      color: #ffd166;
+      padding: 6px;
+      background: rgba(255,209,102,0.08);
+      border-bottom: 1px solid rgba(229,57,70,0.2);
+    }
+    .lb-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 7px;
+      padding: 5px 10px;
+      color: rgba(229,57,70,0.85);
+      border-bottom: 1px solid rgba(229,57,70,0.1);
+    }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row.rank-1 { color: #ffd700; }
+    .lb-row.rank-2 { color: #c0c0c0; }
+    .lb-row.rank-3 { color: #cd7f32; }
+    .lb-empty { font-size: 7px; padding: 10px; color: rgba(229,57,70,0.4); }
+
+    /* 双栏排行榜 */
+    .boards-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 560px;
+      margin-bottom: 10px;
+    }
+    .boards-row .leaderboard {
+      flex: 1;
+      max-width: none;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -90,28 +193,91 @@
       <span>得分: <span id="score">0</span></span>
       <span>金币: <span id="coins">0</span></span>
       <span>生命: <span id="lives">3</span></span>
+      <div class="hud-spacer"></div>
+      <button class="btn btn-sm" id="hudBoardBtn">排行榜</button>
     </div>
     <canvas id="canvas" width="800" height="400"></canvas>
 
-    <div id="startOverlay" class="overlay">
-      <h2>准备好了吗?</h2>
-      <p>← → 或 A D 移动<br>↑ 或 W 或 空格 跳跃<br>踩蘑菇怪击败它们<br>到达旗杆过关!</p>
-      <button class="btn" id="startBtn">开始游戏</button>
+    <!-- 登陆界面 -->
+    <div id="registerOverlay" class="overlay">
+      <h2>超级玛丽</h2>
+      <p>输入名字登陆</p>
+      <input type="text" id="usernameInput" class="name-input" placeholder="玩家名字..." maxlength="10">
+      <div id="recentUsersWrap">
+        <div id="recentLabel" class="recent-label" style="display:none">最近账号</div>
+        <div id="recentUsers" class="recent-users"></div>
+      </div>
+      <button class="btn" id="registerBtn">开始冒险</button>
+      <div class="leaderboard" style="margin-top:14px">
+        <div class="lb-title">全球榜 TOP 5</div>
+        <div id="loginBoard"></div>
+      </div>
     </div>
 
+    <!-- 开始界面 -->
+    <div id="startOverlay" class="overlay hidden">
+      <h2>准备好了吗?</h2>
+      <div id="startWelcome" class="welcome-text"></div>
+      <p>← → 或 A D 移动<br>↑ 或 W 或 空格 跳跃<br>踩蘑菇怪击败它们<br>到达旗杆过关!</p>
+      <button class="btn" id="startBtn">开始游戏</button>
+      <div class="start-actions">
+        <button class="btn btn-sm" id="switchUserBtn">切换账号</button>
+        <button class="btn btn-sm" id="showBoardBtn">查看排行榜</button>
+      </div>
+    </div>
+
+    <!-- 排行榜界面 -->
+    <div id="boardOverlay" class="overlay hidden">
+      <h2>排行榜</h2>
+      <div class="boards-row">
+        <div class="leaderboard">
+          <div class="lb-title">全球 TOP 8</div>
+          <div id="fullBoard"></div>
+        </div>
+        <div class="leaderboard">
+          <div class="lb-title" id="myHistoryTitle">我的历史</div>
+          <div id="myHistoryBoard"></div>
+        </div>
+      </div>
+      <button class="btn" id="closeBoardBtn">返回</button>
+    </div>
+
+    <!-- 游戏结束界面 -->
     <div id="gameOverOverlay" class="overlay hidden">
       <h2>游戏结束</h2>
       <p class="final-score">得分: <span id="finalScore">0</span></p>
+      <div class="boards-row">
+        <div class="leaderboard">
+          <div class="lb-title">全球榜</div>
+          <div id="gameoverBoard"></div>
+        </div>
+        <div class="leaderboard">
+          <div class="lb-title">我的历史</div>
+          <div id="gameoverMyBoard"></div>
+        </div>
+      </div>
       <button class="btn" id="restartBtn">再来一局</button>
     </div>
 
+    <!-- 通关界面 -->
     <div id="winOverlay" class="overlay hidden">
       <h2>恭喜过关!</h2>
       <p class="final-score">得分: <span id="winScore">0</span></p>
+      <div class="boards-row">
+        <div class="leaderboard">
+          <div class="lb-title">全球榜</div>
+          <div id="winBoard"></div>
+        </div>
+        <div class="leaderboard">
+          <div class="lb-title">我的历史</div>
+          <div id="winMyBoard"></div>
+        </div>
+      </div>
       <button class="btn" id="winRestartBtn">再玩一次</button>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="dist/sunset-music.js"></script>
   <script src="dist/super-mario.js"></script>
 </body>

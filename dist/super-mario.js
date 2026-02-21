@@ -178,6 +178,144 @@ function init() {
     const restartBtn = document.getElementById("restartBtn");
     const finalScoreEl = document.getElementById("finalScore");
     const winScoreEl = document.getElementById("winScore");
+    const registerOverlay = document.getElementById("registerOverlay");
+    const usernameInput = document.getElementById("usernameInput");
+    const registerBtn = document.getElementById("registerBtn");
+    const startWelcomeEl = document.getElementById("startWelcome");
+    const boardOverlay = document.getElementById("boardOverlay");
+    const closeBoardBtn = document.getElementById("closeBoardBtn");
+    const switchUserBtn = document.getElementById("switchUserBtn");
+    const showBoardBtn = document.getElementById("showBoardBtn");
+    const hudBoardBtn = document.getElementById("hudBoardBtn");
+    const myHistoryTitleEl = document.getElementById("myHistoryTitle");
+    // ========== Supabase 客户端 ==========
+    const SUPABASE_URL = "https://keabgkpeuyasxvqeidnr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_ajGQB1CGxWUVO7h33IMLhw_-H6YO9aa";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let username = ""; // 每次必须登陆，不自动读取
+    let scoreSaved = false;
+    function getRecentUsers() {
+        try {
+            return JSON.parse(localStorage.getItem("mario_recent_users") || "[]");
+        }
+        catch {
+            return [];
+        }
+    }
+    function addRecentUser(name) {
+        const list = getRecentUsers().filter(u => u !== name);
+        list.unshift(name);
+        localStorage.setItem("mario_recent_users", JSON.stringify(list.slice(0, 5)));
+    }
+    function renderRecentUsers() {
+        const container = document.getElementById("recentUsers");
+        const label = document.getElementById("recentLabel");
+        if (!container)
+            return;
+        const users = getRecentUsers();
+        if (users.length === 0) {
+            container.innerHTML = "";
+            if (label)
+                label.style.display = "none";
+            return;
+        }
+        if (label)
+            label.style.display = "block";
+        container.innerHTML = users.map(u => `<button class="recent-btn" data-name="${u}">${u}</button>`).join("");
+        container.querySelectorAll(".recent-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                usernameInput.value = btn.dataset.name || "";
+            });
+        });
+    }
+    async function saveScore() {
+        if (!username || scoreSaved)
+            return;
+        scoreSaved = true;
+        await db.from("scores").insert({ name: username, score });
+    }
+    async function getTopScores(limit = 8) {
+        const { data } = await db.from("scores").select("name, score").order("score", { ascending: false }).limit(limit);
+        return data || [];
+    }
+    async function getMyHistory(limit = 5) {
+        const { data } = await db.from("scores").select("score, created_at").eq("name", username).order("created_at", { ascending: false }).limit(limit);
+        return data || [];
+    }
+    async function renderLeaderboard(containerId) {
+        const el = document.getElementById(containerId);
+        if (!el)
+            return;
+        el.innerHTML = '<div class="lb-empty">加载中...</div>';
+        const board = await getTopScores(containerId === "loginBoard" ? 5 : 8);
+        if (board.length === 0) {
+            el.innerHTML = '<div class="lb-empty">暂无记录</div>';
+            return;
+        }
+        el.innerHTML = board.map((e, i) => `<div class="lb-row rank-${i + 1}"><span>#${i + 1} ${e.name}</span><span>${e.score}</span></div>`).join("");
+    }
+    async function renderMyHistory(containerId) {
+        const el = document.getElementById(containerId);
+        if (!el)
+            return;
+        el.innerHTML = '<div class="lb-empty">加载中...</div>';
+        const history = await getMyHistory(5);
+        if (history.length === 0) {
+            el.innerHTML = '<div class="lb-empty">暂无记录</div>';
+            return;
+        }
+        el.innerHTML = history.map((e, i) => {
+            const date = e.created_at
+                ? new Date(e.created_at).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })
+                : "";
+            return `<div class="lb-row"><span>#${i + 1} ${date}</span><span>${e.score}</span></div>`;
+        }).join("");
+    }
+    function openBoardOverlay(fromStart) {
+        if (fromStart)
+            startOverlay.classList.add("hidden");
+        myHistoryTitleEl.textContent = `${username} 的历史`;
+        boardOverlay.dataset.returnTo = fromStart ? "start" : "";
+        boardOverlay.classList.remove("hidden");
+        renderLeaderboard("fullBoard");
+        renderMyHistory("myHistoryBoard");
+    }
+    // 初始化：加载登陆界面预览 + 最近账号
+    renderLeaderboard("loginBoard");
+    renderRecentUsers();
+    registerBtn.addEventListener("click", () => {
+        const name = usernameInput.value.trim().slice(0, 10);
+        if (!name)
+            return;
+        username = name;
+        addRecentUser(name);
+        registerOverlay.classList.add("hidden");
+        startWelcomeEl.textContent = `欢迎, ${username}!`;
+        startOverlay.classList.remove("hidden");
+    });
+    usernameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter")
+            registerBtn.click();
+    });
+    switchUserBtn.addEventListener("click", () => {
+        username = "";
+        scoreSaved = false;
+        startOverlay.classList.add("hidden");
+        registerOverlay.classList.remove("hidden");
+        renderRecentUsers();
+    });
+    showBoardBtn.addEventListener("click", () => openBoardOverlay(true));
+    hudBoardBtn.addEventListener("click", () => {
+        if (gameState === "playing")
+            return;
+        openBoardOverlay(startOverlay.classList.contains("hidden") === false);
+    });
+    closeBoardBtn.addEventListener("click", () => {
+        boardOverlay.classList.add("hidden");
+        if (boardOverlay.dataset.returnTo === "start")
+            startOverlay.classList.remove("hidden");
+    });
     function aabb(a, b) {
         return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
     }
@@ -211,6 +349,7 @@ function init() {
             coins = 0;
             lives = 3;
             currentLevel = 0;
+            scoreSaved = false;
         }
         loadLevel(currentLevel);
         mario.x = 80;
@@ -235,6 +374,10 @@ function init() {
                         gameState = "start";
                         gameOverOverlay.classList.remove("hidden");
                         finalScoreEl.textContent = String(score);
+                        saveScore().then(() => {
+                            renderLeaderboard("gameoverBoard");
+                            renderMyHistory("gameoverMyBoard");
+                        });
                     }
                     else {
                         resetGame(false);
@@ -243,9 +386,13 @@ function init() {
             }
             if (gameState === "win") {
                 winTimer++;
-                if (winTimer > 120) {
+                if (winTimer === 121) {
                     winOverlay.classList.remove("hidden");
                     winScoreEl.textContent = String(score);
+                    saveScore().then(() => {
+                        renderLeaderboard("winBoard");
+                        renderMyHistory("winMyBoard");
+                    });
                 }
             }
             return;
